@@ -1,0 +1,18 @@
+[app]
+name = "navidrome"
+version = "0.1.0"
+description = "Navidrome music server and streamer"
+
+[runtime.container]
+image = "Dockerfile"
+port = 3000
+
+[routing]
+# No public paths — all access requires OpenHost authentication
+
+[resources]
+memory_mb = 256
+cpu_millicores = 250
+
+[data]
+app_data = true
