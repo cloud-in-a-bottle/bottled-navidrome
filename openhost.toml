@@ -8,7 +8,7 @@ image = "Dockerfile"
 port = 3000
 
 [routing]
-# No public paths — all access requires OpenHost authentication
+public_paths = ["/"]
 
 [resources]
 memory_mb = 256
