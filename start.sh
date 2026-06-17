@@ -64,6 +64,10 @@ if [ -z "$SAFE_OWNER" ]; then
     SAFE_OWNER="admin"
 fi
 export OPENHOST_REVERSE_PROXY_USER="$SAFE_OWNER"
+# New ExtAuth config keys (Navidrome >= 0.59); the ReverseProxy* keys are
+# the deprecated aliases kept for older builds.
+export ND_EXTAUTH_USERHEADER="Remote-User"
+export ND_EXTAUTH_TRUSTEDSOURCES="127.0.0.1/32,::1/128"
 export ND_REVERSEPROXYUSERHEADER="Remote-User"
 # Only the in-container Caddy (loopback) is trusted to set Remote-User.
 export ND_REVERSEPROXYWHITELIST="127.0.0.1/32,::1/128"
