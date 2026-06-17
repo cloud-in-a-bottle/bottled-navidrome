@@ -52,12 +52,17 @@ export ND_ENABLETRANSCODINGCONFIG=true
 # the OpenHost router stamps `X-OpenHost-Is-Owner: true`.  Navidrome trusts
 # that header but ONLY from the local Caddy process (the whitelist below),
 # and Caddy always strips any client-supplied Remote-User first, so the
-# header can't be spoofed.  The first auto-created user becomes the admin.
+# header can't be spoofed.
+#
+# Navidrome refuses to honour reverse-proxy auth until at least one admin
+# user exists (otherwise it forces its interactive "create admin" wizard),
+# so on first boot we seed an admin row for the owner.  After that, ext-auth
+# logs them straight in under that account.
 #
 # OPENHOST_REVERSE_PROXY_USER is the username Caddy stamps.  We resolve it
 # from the OpenHost owner username (sanitised to Navidrome's allowed
-# characters) and fall back to "admin" when unset/empty so reverse-proxy
-# auto-registration can't create a blank account.
+# characters) and fall back to "admin" when unset/empty so we never seed a
+# blank account.
 RAW_OWNER="${OPENHOST_OWNER_USERNAME:-}"
 SAFE_OWNER="$(printf '%s' "$RAW_OWNER" | tr -cd 'A-Za-z0-9._-')"
 if [ -z "$SAFE_OWNER" ]; then
@@ -72,6 +77,53 @@ export ND_REVERSEPROXYUSERHEADER="Remote-User"
 # Only the in-container Caddy (loopback) is trusted to set Remote-User.
 export ND_REVERSEPROXYWHITELIST="127.0.0.1/32,::1/128"
 echo "Navidrome SSO: owner auto-login as '$OPENHOST_REVERSE_PROXY_USER' via reverse-proxy auth"
+
+DB_FILE="$DATA_DIR/navidrome.db"
+
+# Returns 0 if an admin user already exists in the Navidrome DB.
+admin_exists() {
+    [ -f "$DB_FILE" ] || return 1
+    local n
+    n="$(sqlite3 "$DB_FILE" "SELECT count(*) FROM user WHERE is_admin = 1;" 2>/dev/null || echo 0)"
+    [ "$n" -ge 1 ] 2>/dev/null
+}
+
+# Seed an admin user matching the OpenHost owner so ext-auth can log them in
+# without the create-admin wizard.  Idempotent: only inserts when the user
+# table is empty of admins.
+seed_owner_admin() {
+    local now uid pw
+    now="$(date -u +"%Y-%m-%d %H:%M:%S")"
+    uid="$(cat /proc/sys/kernel/random/uuid)"
+    # The owner authenticates via the trusted reverse-proxy header, never this
+    # password, so a throwaway random value is fine (and avoids a blank one).
+    pw="$(head -c 4096 /dev/urandom | LC_ALL=C tr -dc 'A-Za-z0-9' | head -c 32)"
+    sqlite3 "$DB_FILE" <<SQL
+INSERT OR IGNORE INTO user (id, user_name, name, email, password, is_admin, created_at, updated_at)
+VALUES ('$uid', '$SAFE_OWNER', '$SAFE_OWNER', '', '$pw', 1, '$now', '$now');
+SQL
+    echo "Navidrome SSO: seeded admin user '$SAFE_OWNER'"
+}
+
+if ! admin_exists; then
+    echo "Navidrome SSO: no admin user yet — seeding owner admin (first boot)"
+    # Phase 1: boot Navidrome briefly so it creates and migrates the DB.
+    /app/navidrome >/tmp/nd-init.log 2>&1 &
+    ND_INIT_PID=$!
+    # Wait (up to ~60s) for the user table to exist, then seed.
+    i=0
+    while [ $i -lt 60 ]; do
+        if [ -f "$DB_FILE" ] && [ -n "$(sqlite3 "$DB_FILE" "SELECT name FROM sqlite_master WHERE type='table' AND name='user';" 2>/dev/null)" ]; then
+            break
+        fi
+        i=$((i + 1))
+        sleep 1
+    done
+    seed_owner_admin
+    # Stop the init instance; phase 2 below runs Navidrome for real.
+    kill "$ND_INIT_PID" 2>/dev/null || true
+    wait "$ND_INIT_PID" 2>/dev/null || true
+fi
 
 # Start Caddy in background — port 3000 -> Navidrome on 4533
 caddy run --config /app/Caddyfile &
