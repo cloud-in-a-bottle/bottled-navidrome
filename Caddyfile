@@ -3,10 +3,33 @@
 }
 
 :3000 {
-	reverse_proxy localhost:4533 {
-		# Rewrite the Host header from X-Forwarded-Host so that Navidrome
-		# sees the correct origin. The OpenHost router strips Host and
-		# puts the real value in X-Forwarded-Host.
-		header_up Host {header.X-Forwarded-Host}
+	# Strip any client-supplied auth header up front so it can never be
+	# spoofed; only the branches below may (re)introduce it.  The OpenHost
+	# router authenticates the visitor and stamps X-OpenHost-Is-Owner: true
+	# for the zone owner (it strips client copies of X-OpenHost-* itself).
+	#
+	# When the owner is present we inject Remote-User = the owner's OpenHost
+	# username so Navidrome's reverse-proxy auth (ND_REVERSEPROXYUSERHEADER /
+	# ND_REVERSEPROXYWHITELIST, configured in start.sh) auto-logs them in
+	# under their real identity.  Non-owner traffic reaches Navidrome with no
+	# Remote-User and falls through to Navidrome's normal login (Subsonic
+	# clients, share links, etc. keep working).
+
+	# Owner requests: trust the router-stamped header, inject Remote-User.
+	@owner header X-OpenHost-Is-Owner true
+	handle @owner {
+		reverse_proxy localhost:4533 {
+			header_up Host {header.X-Forwarded-Host}
+			header_up -Remote-User
+			header_up Remote-User {$OPENHOST_REVERSE_PROXY_USER}
+		}
+	}
+
+	# Everyone else: pass through with Remote-User stripped.
+	handle {
+		reverse_proxy localhost:4533 {
+			header_up Host {header.X-Forwarded-Host}
+			header_up -Remote-User
+		}
 	}
 }
