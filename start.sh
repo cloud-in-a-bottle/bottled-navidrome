@@ -68,7 +68,6 @@ SAFE_OWNER="$(printf '%s' "$RAW_OWNER" | tr -cd 'A-Za-z0-9._-')"
 if [ -z "$SAFE_OWNER" ]; then
     SAFE_OWNER="admin"
 fi
-export OPENHOST_REVERSE_PROXY_USER="$SAFE_OWNER"
 # New ExtAuth config keys (Navidrome >= 0.59); the ReverseProxy* keys are
 # the deprecated aliases kept for older builds.
 export ND_EXTAUTH_USERHEADER="Remote-User"
@@ -125,9 +124,15 @@ if ! admin_exists; then
     wait "$ND_INIT_PID" 2>/dev/null || true
 fi
 
+# Render the Caddy config with the resolved owner username baked in, then
+# run Caddy against the rendered copy.  (Caddy's {$ENV} substitution proved
+# unreliable for a value exported at container start.)
+RENDERED_CADDYFILE="/tmp/Caddyfile.rendered"
+sed "s/__OWNER_USERNAME__/${SAFE_OWNER}/g" /app/Caddyfile > "$RENDERED_CADDYFILE"
+
 # Start Caddy in background — port 3000 -> Navidrome on 4533
-caddy run --config /app/Caddyfile &
-echo "Caddy started"
+caddy run --config "$RENDERED_CADDYFILE" &
+echo "Caddy started (owner reverse-proxy user: $SAFE_OWNER)"
 
 # Start Navidrome
 echo "Starting Navidrome..."
