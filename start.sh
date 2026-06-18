@@ -40,7 +40,7 @@ export ND_MUSICFOLDER="$MUSIC_DIR"
 export ND_PORT=4533
 export ND_ADDRESS=0.0.0.0
 export ND_BASEURL=""
-export ND_LOGLEVEL=info
+export ND_LOGLEVEL=debug
 export ND_SCANSCHEDULE=1h
 export ND_SESSIONTIMEOUT=168h
 export ND_ENABLESHARING=true
@@ -72,9 +72,7 @@ fi
 # the deprecated aliases kept for older builds.  Trust only loopback — the
 # auth-proxy presents every owner request as coming from 127.0.0.1.
 export ND_EXTAUTH_USERHEADER="Remote-User"
-export ND_REVERSEPROXYUSERHEADER="Remote-User"
 export ND_EXTAUTH_TRUSTEDSOURCES="127.0.0.1/32,::1/128"
-export ND_REVERSEPROXYWHITELIST="127.0.0.1/32,::1/128"
 echo "Navidrome SSO: owner auto-login as '$SAFE_OWNER' via reverse-proxy auth"
 
 # Start the OpenHost auth-proxy sidecar first — it listens on :3000 and
