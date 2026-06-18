@@ -1,26 +1,12 @@
 {
 	auto_https off
 }
-
-# NOTE: start.sh renders this file at boot, replacing __OWNER_USERNAME__ with
-# the resolved OpenHost owner username, and runs Caddy against the rendered
-# copy.  (Caddy's own {$ENV} substitution proved unreliable for a value
-# exported at container start, so we bake it in instead.)
-
 :3000 {
+	header_down X-OH-In-Owner "{http.request.header.X-OpenHost-Is-Owner}"
+	header_down X-OH-In-XFF "{http.request.header.X-Forwarded-For}"
 	@owner header X-OpenHost-Is-Owner true
-
-	# Owner requests: trust the router-stamped header and inject Remote-User
-	# so Navidrome's reverse-proxy auth (ND_EXTAUTH_* / deprecated
-	# ND_REVERSEPROXY* aliases, see start.sh) auto-logs the owner in.  Any
-	# client-supplied Remote-User is stripped first so it can't be spoofed.
-	#
-	# Navidrome resolves the ext-auth "client" from the X-Forwarded-For chain
-	# and only honours Remote-User when that client is in its trusted sources.
-	# The OpenHost router prepends the real (untrusted) browser IP, so we
-	# overwrite X-Forwarded-For with loopback here — the only address we
-	# trust.  This is safe: only this owner branch ever sets Remote-User.
 	handle @owner {
+		header_down X-OH-Branch owner
 		reverse_proxy 127.0.0.1:4533 {
 			header_up Host {header.X-Forwarded-Host}
 			header_up -Remote-User
@@ -28,10 +14,8 @@
 			header_up X-Forwarded-For 127.0.0.1
 		}
 	}
-
-	# Everyone else: pass through with Remote-User stripped; Navidrome's own
-	# login (and Subsonic clients / share links) handle these.
 	handle {
+		header_down X-OH-Branch other
 		reverse_proxy 127.0.0.1:4533 {
 			header_up Host {header.X-Forwarded-Host}
 			header_up -Remote-User
