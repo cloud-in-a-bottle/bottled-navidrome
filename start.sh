@@ -40,7 +40,7 @@ export ND_MUSICFOLDER="$MUSIC_DIR"
 export ND_PORT=4533
 export ND_ADDRESS=0.0.0.0
 export ND_BASEURL=""
-export ND_LOGLEVEL=debug
+export ND_LOGLEVEL=info
 export ND_SCANSCHEDULE=1h
 export ND_SESSIONTIMEOUT=168h
 export ND_ENABLESHARING=true
@@ -71,8 +71,13 @@ fi
 # New ExtAuth config keys (Navidrome >= 0.59); the ReverseProxy* keys are
 # the deprecated aliases kept for older builds.  Trust only loopback — the
 # auth-proxy presents every owner request as coming from 127.0.0.1.
-export ND_EXTAUTH_USERHEADER="Remote-User"
-export ND_EXTAUTH_TRUSTEDSOURCES="127.0.0.1/32,::1/128"
+# NOTE: Navidrome 0.62 ships a newer ExtAuth system (ND_EXTAUTH_*), but
+# setting those keys disables the classic reverse-proxy auto-login that
+# injects the session into the web UI, so we use the classic
+# ND_REVERSEPROXY* keys (still honoured in 0.62) instead.  The auth-proxy
+# presents every owner request from 127.0.0.1, the only trusted source.
+export ND_REVERSEPROXYUSERHEADER="Remote-User"
+export ND_REVERSEPROXYWHITELIST="127.0.0.1/32,::1/128"
 echo "Navidrome SSO: owner auto-login as '$SAFE_OWNER' via reverse-proxy auth"
 
 # Start the OpenHost auth-proxy sidecar first — it listens on :3000 and
