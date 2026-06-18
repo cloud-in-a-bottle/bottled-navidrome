@@ -91,15 +91,16 @@ admin_exists() {
 # without the create-admin wizard.  Idempotent: only inserts when the user
 # table is empty of admins.
 seed_owner_admin() {
-    local now uid pw
+    local now uid
     now="$(date -u +"%Y-%m-%d %H:%M:%S")"
     uid="$(cat /proc/sys/kernel/random/uuid)"
-    # The owner authenticates via the trusted reverse-proxy header, never this
-    # password, so a throwaway random value is fine (and avoids a blank one).
-    pw="$(head -c 4096 /dev/urandom | LC_ALL=C tr -dc 'A-Za-z0-9' | head -c 32)"
+    # Leave the password empty: the owner authenticates via the trusted
+    # reverse-proxy header, never a password.  An empty password skips
+    # Navidrome's at-rest password decryption (a non-empty plaintext would
+    # fail AES-GCM decryption and error on login).
     sqlite3 "$DB_FILE" <<SQL
 INSERT OR IGNORE INTO user (id, user_name, name, email, password, is_admin, created_at, updated_at)
-VALUES ('$uid', '$SAFE_OWNER', '$SAFE_OWNER', '', '$pw', 1, '$now', '$now');
+VALUES ('$uid', '$SAFE_OWNER', '$SAFE_OWNER', '', '', 1, '$now', '$now');
 SQL
     echo "Navidrome SSO: seeded admin user '$SAFE_OWNER'"
 }

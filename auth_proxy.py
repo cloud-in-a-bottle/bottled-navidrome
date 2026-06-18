@@ -112,8 +112,11 @@ class AuthProxyHandler(BaseHTTPRequestHandler):
             out_headers.append((key, value))
 
         # Host Navidrome should believe it is serving as (for URL generation).
-        if forwarded_host:
-            out_headers.append(("Host", forwarded_host))
+        # Navidrome rejects requests with no Host header (400), so always set
+        # one: the forwarded host for real traffic, else the inbound Host
+        # (e.g. the router's liveness probe), else the upstream address.
+        host_val = forwarded_host or self.headers.get("Host") or f"{UPSTREAM_HOST}:{UPSTREAM_PORT}"
+        out_headers.append(("Host", host_val))
         # Pin the forwarded chain to loopback so Navidrome's reverse-proxy
         # auth treats the request as coming from a trusted source.
         out_headers.append(("X-Forwarded-For", "127.0.0.1"))
