@@ -77,56 +77,19 @@ export ND_EXTAUTH_TRUSTEDSOURCES="127.0.0.1/32,::1/128"
 export ND_REVERSEPROXYWHITELIST="127.0.0.1/32,::1/128"
 echo "Navidrome SSO: owner auto-login as '$SAFE_OWNER' via reverse-proxy auth"
 
-DB_FILE="$DATA_DIR/navidrome.db"
+# Phase 1: make sure a Navidrome admin exists, otherwise reverse-proxy auth
+# is ignored and the owner gets the interactive create-admin wizard.  We
+# create it through Navidrome's own first-run endpoint (see seed_admin.py)
+# so the password is encrypted correctly; the owner never uses it.
+echo "Navidrome SSO: ensuring an admin user exists (first boot)"
+/app/navidrome >/tmp/nd-init.log 2>&1 &
+ND_INIT_PID=$!
+python3 /app/seed_admin.py "$SAFE_OWNER" || true
+kill "$ND_INIT_PID" 2>/dev/null || true
+wait "$ND_INIT_PID" 2>/dev/null || true
 
-# Returns 0 if an admin user already exists in the Navidrome DB.
-admin_exists() {
-    [ -f "$DB_FILE" ] || return 1
-    local n
-    n="$(sqlite3 "$DB_FILE" "SELECT count(*) FROM user WHERE is_admin = 1;" 2>/dev/null || echo 0)"
-    [ "$n" -ge 1 ] 2>/dev/null
-}
-
-# Seed an admin user matching the OpenHost owner so ext-auth can log them in
-# without the create-admin wizard.  Idempotent: only inserts when the user
-# table is empty of admins.
-seed_owner_admin() {
-    local now uid
-    now="$(date -u +"%Y-%m-%d %H:%M:%S")"
-    uid="$(cat /proc/sys/kernel/random/uuid)"
-    # Leave the password empty: the owner authenticates via the trusted
-    # reverse-proxy header, never a password.  An empty password skips
-    # Navidrome's at-rest password decryption (a non-empty plaintext would
-    # fail AES-GCM decryption and error on login).
-    sqlite3 "$DB_FILE" <<SQL
-INSERT OR IGNORE INTO user (id, user_name, name, email, password, is_admin, created_at, updated_at)
-VALUES ('$uid', '$SAFE_OWNER', '$SAFE_OWNER', '', '', 1, '$now', '$now');
-SQL
-    echo "Navidrome SSO: seeded admin user '$SAFE_OWNER'"
-}
-
-if ! admin_exists; then
-    echo "Navidrome SSO: no admin user yet — seeding owner admin (first boot)"
-    # Phase 1: boot Navidrome briefly so it creates and migrates the DB.
-    /app/navidrome >/tmp/nd-init.log 2>&1 &
-    ND_INIT_PID=$!
-    # Wait (up to ~60s) for the user table to exist, then seed.
-    i=0
-    while [ $i -lt 60 ]; do
-        if [ -f "$DB_FILE" ] && [ -n "$(sqlite3 "$DB_FILE" "SELECT name FROM sqlite_master WHERE type='table' AND name='user';" 2>/dev/null)" ]; then
-            break
-        fi
-        i=$((i + 1))
-        sleep 1
-    done
-    seed_owner_admin
-    # Stop the init instance; phase 2 below runs Navidrome for real.
-    kill "$ND_INIT_PID" 2>/dev/null || true
-    wait "$ND_INIT_PID" 2>/dev/null || true
-fi
-
-# Start the OpenHost auth-proxy sidecar — listens on :3000, forwards to
-# Navidrome on :4533, injecting Remote-User for owner requests.
+# Phase 2: start the OpenHost auth-proxy sidecar — listens on :3000,
+# forwards to Navidrome on :4533, injecting Remote-User for owner requests.
 python3 /app/auth_proxy.py &
 echo "Auth-proxy started (owner reverse-proxy user: $SAFE_OWNER)"
 
