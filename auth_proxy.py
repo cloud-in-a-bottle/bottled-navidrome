@@ -11,13 +11,14 @@ under their real OpenHost username.  Everyone else is forwarded with no
 ``Remote-User`` and falls through to Navidrome's normal login, so Subsonic
 clients and public share links keep working.
 
-Why a small proxy instead of Caddy: Navidrome resolves the ext-auth
-"client" from the X-Forwarded-For chain and only honours ``Remote-User``
-when that client is in its trusted sources.  We need precise control of
-X-Forwarded-For (pin it to loopback, the only address we trust); doing
-that reliably in Caddy proved fragile, whereas here we set every forwarded
-header explicitly.  Responses are streamed so audio playback / range
-requests are unaffected.
+Why a small proxy instead of Caddy: Navidrome only honours ``Remote-User``
+when the request's client is in its trusted sources, and it derives that
+client from the connection peer / X-Forwarded-For chain.  We need precise
+control of those headers (strip any inbound X-Forwarded-For and connect
+from loopback so Navidrome sees the trusted 127.0.0.1 peer); doing that
+reliably in Caddy proved fragile, whereas here we set every forwarded
+header explicitly.  Responses are streamed (and connection-close framed)
+so audio playback / range requests and the SPA's assets are unaffected.
 
 Security model:
   * ``X-OpenHost-Is-Owner`` is trusted because the OpenHost router strips

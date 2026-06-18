@@ -53,29 +53,25 @@ export ND_ENABLETRANSCODINGCONFIG=true
 # the owner in under their real OpenHost username; everyone else is
 # forwarded without it and uses Navidrome's normal login.
 #
-# Navidrome only honours Remote-User when the request's X-Forwarded-For
-# client is in its trusted sources, so the proxy pins X-Forwarded-For to
-# 127.0.0.1 (the only address we trust).  Navidrome also refuses
-# reverse-proxy auth until an admin user exists (otherwise it forces the
-# interactive "create admin" wizard), so on first boot we seed an admin row
-# for the owner.
+# Navidrome only honours Remote-User when the request's client is in its
+# trusted sources.  The auth-proxy connects to Navidrome from loopback and
+# sends no X-Forwarded-For, so Navidrome sees the (trusted) 127.0.0.1 peer.
+# Navidrome also refuses reverse-proxy auth until an admin user exists
+# (otherwise it forces the interactive "create admin" wizard), so on first
+# boot we create an admin for the owner (see seed_admin.py).
 #
-# SAFE_OWNER is the username we seed; the proxy resolves the same value from
-# OPENHOST_OWNER_USERNAME independently.  Fall back to "admin" when
-# unset/empty so we never seed a blank account.
+# SAFE_OWNER is the username we create; the proxy resolves the same value
+# from OPENHOST_OWNER_USERNAME independently.  Fall back to "admin" when
+# unset/empty so we never create a blank account.
 RAW_OWNER="${OPENHOST_OWNER_USERNAME:-}"
 SAFE_OWNER="$(printf '%s' "$RAW_OWNER" | tr -cd 'A-Za-z0-9._-')"
 if [ -z "$SAFE_OWNER" ]; then
     SAFE_OWNER="admin"
 fi
-# New ExtAuth config keys (Navidrome >= 0.59); the ReverseProxy* keys are
-# the deprecated aliases kept for older builds.  Trust only loopback — the
-# auth-proxy presents every owner request as coming from 127.0.0.1.
-# NOTE: Navidrome 0.62 ships a newer ExtAuth system (ND_EXTAUTH_*), but
-# setting those keys disables the classic reverse-proxy auto-login that
-# injects the session into the web UI, so we use the classic
-# ND_REVERSEPROXY* keys (still honoured in 0.62) instead.  The auth-proxy
-# presents every owner request from 127.0.0.1, the only trusted source.
+# Configure Navidrome's reverse-proxy auth, trusting only loopback.  We set
+# BOTH the classic ND_REVERSEPROXY* keys and the newer ND_EXTAUTH_* aliases
+# (Navidrome 0.62 needs the classic keys for the web-UI auto-login to inject
+# the session; the ExtAuth aliases keep it forward-compatible).
 export ND_EXTAUTH_USERHEADER="Remote-User"
 export ND_EXTAUTH_TRUSTEDSOURCES="127.0.0.1/32,::1/128"
 export ND_REVERSEPROXYUSERHEADER="Remote-User"
