@@ -154,19 +154,27 @@ class AuthProxyHandler(BaseHTTPRequestHandler):
             return
 
         # Relay status + headers, streaming the body so audio/range responses
-        # aren't buffered in memory.
+        # aren't buffered in memory.  Close the connection after each response
+        # and advertise it: upstream chunked responses are de-chunked by
+        # http.client and we stream the result without a Content-Length, so we
+        # rely on connection-close framing rather than HTTP/1.1 keep-alive
+        # (which would otherwise corrupt the response boundary -> broken assets).
+        self.close_connection = True
         try:
             self.send_response_only(resp.status, resp.reason)
             for k, v in resp.getheaders():
-                if k.lower() in HOP_BY_HOP:
+                kl = k.lower()
+                if kl in HOP_BY_HOP or kl == "connection":
                     continue
                 self.send_header(k, v)
+            self.send_header("Connection", "close")
             self.end_headers()
-            while True:
-                chunk = resp.read(64 * 1024)
-                if not chunk:
-                    break
-                self.wfile.write(chunk)
+            if self.command != "HEAD":
+                while True:
+                    chunk = resp.read(64 * 1024)
+                    if not chunk:
+                        break
+                    self.wfile.write(chunk)
         except (OSError, http.client.HTTPException) as exc:
             log.debug("client/upstream disconnect during relay: %s", exc)
         finally:
