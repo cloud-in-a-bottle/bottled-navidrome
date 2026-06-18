@@ -76,6 +76,8 @@ fi
 # injects the session into the web UI, so we use the classic
 # ND_REVERSEPROXY* keys (still honoured in 0.62) instead.  The auth-proxy
 # presents every owner request from 127.0.0.1, the only trusted source.
+export ND_EXTAUTH_USERHEADER="Remote-User"
+export ND_EXTAUTH_TRUSTEDSOURCES="127.0.0.1/32,::1/128"
 export ND_REVERSEPROXYUSERHEADER="Remote-User"
 export ND_REVERSEPROXYWHITELIST="127.0.0.1/32,::1/128"
 echo "Navidrome SSO: owner auto-login as '$SAFE_OWNER' via reverse-proxy auth"

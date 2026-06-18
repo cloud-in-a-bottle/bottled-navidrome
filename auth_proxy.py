@@ -117,9 +117,9 @@ class AuthProxyHandler(BaseHTTPRequestHandler):
         # (e.g. the router's liveness probe), else the upstream address.
         host_val = forwarded_host or self.headers.get("Host") or f"{UPSTREAM_HOST}:{UPSTREAM_PORT}"
         out_headers.append(("Host", host_val))
-        # Pin the forwarded chain to loopback so Navidrome's reverse-proxy
-        # auth treats the request as coming from a trusted source.
-        out_headers.append(("X-Forwarded-For", "127.0.0.1"))
+        # Do NOT add X-Forwarded-For: with none present Navidrome uses the
+        # immediate peer (this proxy, 127.0.0.1) as the client, which is the
+        # trusted source.  (A loopback XFF is mis-parsed and rejected.)
         out_headers.append(("X-Forwarded-Proto", forwarded_proto))
         if is_owner:
             out_headers.append((AUTH_HEADER_NAME, OWNER_USERNAME))
