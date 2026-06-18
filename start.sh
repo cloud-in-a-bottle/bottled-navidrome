@@ -71,10 +71,17 @@ fi
 # New ExtAuth config keys (Navidrome >= 0.59); the ReverseProxy* keys are
 # the deprecated aliases kept for older builds.
 export ND_EXTAUTH_USERHEADER="Remote-User"
-export ND_EXTAUTH_TRUSTEDSOURCES="127.0.0.1/32,::1/128"
 export ND_REVERSEPROXYUSERHEADER="Remote-User"
-# Only the in-container Caddy (loopback) is trusted to set Remote-User.
-export ND_REVERSEPROXYWHITELIST="127.0.0.1/32,::1/128"
+# Trust the Remote-User header from any source.  This is safe in this
+# architecture because the in-container Caddy front-end is the ONLY thing
+# that can reach Navidrome (127.0.0.1:4533, not published), and Caddy only
+# ever sets Remote-User on requests the OpenHost router stamped as the
+# owner (it strips any client-supplied Remote-User otherwise).  Pinning the
+# whitelist to loopback instead does not work: Navidrome derives the client
+# IP from the X-Forwarded-For chain the router prepends (the real browser
+# IP), which would never match a loopback whitelist.
+export ND_EXTAUTH_TRUSTEDSOURCES="0.0.0.0/0,::/0"
+export ND_REVERSEPROXYWHITELIST="0.0.0.0/0,::/0"
 echo "Navidrome SSO: owner auto-login as '$OPENHOST_REVERSE_PROXY_USER' via reverse-proxy auth"
 
 DB_FILE="$DATA_DIR/navidrome.db"
