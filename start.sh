@@ -47,40 +47,35 @@ export ND_ENABLESHARING=true
 export ND_ENABLETRANSCODINGCONFIG=true
 
 # --- OpenHost single sign-on --------------------------------------------
-# Navidrome auto-logs the OpenHost owner in via reverse-proxy auth: the
-# Caddy front-end (see Caddyfile) injects `Remote-User: <owner>` only when
-# the OpenHost router stamps `X-OpenHost-Is-Owner: true`.  Navidrome trusts
-# that header but ONLY from the local Caddy process (the whitelist below),
-# and Caddy always strips any client-supplied Remote-User first, so the
-# header can't be spoofed.
+# A small Python auth-proxy sidecar (auth_proxy.py) fronts Navidrome on
+# port 3000.  For owner requests (router-stamped X-OpenHost-Is-Owner: true)
+# it forwards `Remote-User: <owner>` so Navidrome's reverse-proxy auth signs
+# the owner in under their real OpenHost username; everyone else is
+# forwarded without it and uses Navidrome's normal login.
 #
-# Navidrome refuses to honour reverse-proxy auth until at least one admin
-# user exists (otherwise it forces its interactive "create admin" wizard),
-# so on first boot we seed an admin row for the owner.  After that, ext-auth
-# logs them straight in under that account.
+# Navidrome only honours Remote-User when the request's X-Forwarded-For
+# client is in its trusted sources, so the proxy pins X-Forwarded-For to
+# 127.0.0.1 (the only address we trust).  Navidrome also refuses
+# reverse-proxy auth until an admin user exists (otherwise it forces the
+# interactive "create admin" wizard), so on first boot we seed an admin row
+# for the owner.
 #
-# OPENHOST_REVERSE_PROXY_USER is the username Caddy stamps.  We resolve it
-# from the OpenHost owner username (sanitised to Navidrome's allowed
-# characters) and fall back to "admin" when unset/empty so we never seed a
-# blank account.
+# SAFE_OWNER is the username we seed; the proxy resolves the same value from
+# OPENHOST_OWNER_USERNAME independently.  Fall back to "admin" when
+# unset/empty so we never seed a blank account.
 RAW_OWNER="${OPENHOST_OWNER_USERNAME:-}"
 SAFE_OWNER="$(printf '%s' "$RAW_OWNER" | tr -cd 'A-Za-z0-9._-')"
 if [ -z "$SAFE_OWNER" ]; then
     SAFE_OWNER="admin"
 fi
 # New ExtAuth config keys (Navidrome >= 0.59); the ReverseProxy* keys are
-# the deprecated aliases kept for older builds.
+# the deprecated aliases kept for older builds.  Trust only loopback — the
+# auth-proxy presents every owner request as coming from 127.0.0.1.
 export ND_EXTAUTH_USERHEADER="Remote-User"
 export ND_REVERSEPROXYUSERHEADER="Remote-User"
-# Navidrome derives the ext-auth client IP from the X-Forwarded-For chain
-# (rightmost untrusted entry).  In the owner branch the Caddy front-end
-# deletes the inbound X-Forwarded-For (the real browser IP) and re-adds only
-# its own loopback peer, so the client resolves to 127.0.0.1 — which is all
-# we trust here.  Caddy is the only process that can reach Navidrome and
-# only sets Remote-User on owner-stamped requests, so this is tight.
 export ND_EXTAUTH_TRUSTEDSOURCES="127.0.0.1/32,::1/128"
 export ND_REVERSEPROXYWHITELIST="127.0.0.1/32,::1/128"
-echo "Navidrome SSO: owner auto-login as '$OPENHOST_REVERSE_PROXY_USER' via reverse-proxy auth"
+echo "Navidrome SSO: owner auto-login as '$SAFE_OWNER' via reverse-proxy auth"
 
 DB_FILE="$DATA_DIR/navidrome.db"
 
@@ -129,15 +124,10 @@ if ! admin_exists; then
     wait "$ND_INIT_PID" 2>/dev/null || true
 fi
 
-# Render the Caddy config with the resolved owner username baked in, then
-# run Caddy against the rendered copy.  (Caddy's {$ENV} substitution proved
-# unreliable for a value exported at container start.)
-RENDERED_CADDYFILE="/tmp/Caddyfile.rendered"
-sed "s/__OWNER_USERNAME__/${SAFE_OWNER}/g" /app/Caddyfile > "$RENDERED_CADDYFILE"
-
-# Start Caddy in background — port 3000 -> Navidrome on 4533
-caddy run --config "$RENDERED_CADDYFILE" &
-echo "Caddy started (owner reverse-proxy user: $SAFE_OWNER)"
+# Start the OpenHost auth-proxy sidecar — listens on :3000, forwards to
+# Navidrome on :4533, injecting Remote-User for owner requests.
+python3 /app/auth_proxy.py &
+echo "Auth-proxy started (owner reverse-proxy user: $SAFE_OWNER)"
 
 # Start Navidrome
 echo "Starting Navidrome..."
