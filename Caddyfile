@@ -28,6 +28,14 @@
 			header_up Host {header.X-Forwarded-Host}
 			header_up -Remote-User
 			header_up Remote-User __OWNER_USERNAME__
+			# Navidrome only honours Remote-User when the *client* IP
+			# (taken from X-Forwarded-For) is in its trusted sources.  The
+			# OpenHost router forwards the real browser IP in
+			# X-Forwarded-For, which isn't trusted, so we overwrite it with
+			# loopback here.  This is safe: only this owner branch sets
+			# Remote-User, so a non-owner can never reach Navidrome with a
+			# trusted client IP *and* a username header.
+			header_up X-Forwarded-For 127.0.0.1
 		}
 	}
 
