@@ -28,6 +28,12 @@
 			header_up Host {header.X-Forwarded-Host}
 			header_up -Remote-User
 			header_up Remote-User __OWNER_USERNAME__
+			# Drop the inbound X-Forwarded-For (the real browser IP the
+			# OpenHost router prepends) so Caddy re-adds only its own
+			# loopback peer.  Navidrome then resolves the ext-auth client
+			# IP to 127.0.0.1 and honours Remote-User; otherwise it walks
+			# the XFF chain to the untrusted browser IP and ignores it.
+			header_up -X-Forwarded-For
 		}
 	}
 

@@ -72,16 +72,14 @@ fi
 # the deprecated aliases kept for older builds.
 export ND_EXTAUTH_USERHEADER="Remote-User"
 export ND_REVERSEPROXYUSERHEADER="Remote-User"
-# Trust the Remote-User header from any source.  This is safe in this
-# architecture because the in-container Caddy front-end is the ONLY thing
-# that can reach Navidrome (127.0.0.1:4533, not published), and Caddy only
-# ever sets Remote-User on requests the OpenHost router stamped as the
-# owner (it strips any client-supplied Remote-User otherwise).  Pinning the
-# whitelist to loopback instead does not work: Navidrome derives the client
-# IP from the X-Forwarded-For chain the router prepends (the real browser
-# IP), which would never match a loopback whitelist.
-export ND_EXTAUTH_TRUSTEDSOURCES="0.0.0.0/0,::/0"
-export ND_REVERSEPROXYWHITELIST="0.0.0.0/0,::/0"
+# Navidrome derives the ext-auth client IP from the X-Forwarded-For chain
+# (rightmost untrusted entry).  In the owner branch the Caddy front-end
+# deletes the inbound X-Forwarded-For (the real browser IP) and re-adds only
+# its own loopback peer, so the client resolves to 127.0.0.1 — which is all
+# we trust here.  Caddy is the only process that can reach Navidrome and
+# only sets Remote-User on owner-stamped requests, so this is tight.
+export ND_EXTAUTH_TRUSTEDSOURCES="127.0.0.1/32,::1/128"
+export ND_REVERSEPROXYWHITELIST="127.0.0.1/32,::1/128"
 echo "Navidrome SSO: owner auto-login as '$OPENHOST_REVERSE_PROXY_USER' via reverse-proxy auth"
 
 DB_FILE="$DATA_DIR/navidrome.db"
