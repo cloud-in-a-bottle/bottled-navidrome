@@ -77,22 +77,20 @@ export ND_EXTAUTH_TRUSTEDSOURCES="127.0.0.1/32,::1/128"
 export ND_REVERSEPROXYWHITELIST="127.0.0.1/32,::1/128"
 echo "Navidrome SSO: owner auto-login as '$SAFE_OWNER' via reverse-proxy auth"
 
-# Phase 1: make sure a Navidrome admin exists, otherwise reverse-proxy auth
-# is ignored and the owner gets the interactive create-admin wizard.  We
-# create it through Navidrome's own first-run endpoint (see seed_admin.py)
-# so the password is encrypted correctly; the owner never uses it.
-echo "Navidrome SSO: ensuring an admin user exists (first boot)"
-/app/navidrome >/tmp/nd-init.log 2>&1 &
-ND_INIT_PID=$!
-python3 /app/seed_admin.py "$SAFE_OWNER" || true
-kill "$ND_INIT_PID" 2>/dev/null || true
-wait "$ND_INIT_PID" 2>/dev/null || true
-
-# Phase 2: start the OpenHost auth-proxy sidecar — listens on :3000,
+# Start the OpenHost auth-proxy sidecar first — it listens on :3000 and
 # forwards to Navidrome on :4533, injecting Remote-User for owner requests.
+# Bringing it up immediately keeps the app's health endpoint responsive
+# even while Navidrome is still starting.
 python3 /app/auth_proxy.py &
 echo "Auth-proxy started (owner reverse-proxy user: $SAFE_OWNER)"
 
-# Start Navidrome
+# Ensure a Navidrome admin exists, otherwise reverse-proxy auth is ignored
+# and the owner gets the interactive create-admin wizard.  Run in the
+# background: seed_admin.py waits for Navidrome to come up, then creates the
+# admin through Navidrome's own first-run endpoint (correct password
+# encryption; the owner never uses that password).  Idempotent on reboots.
+( python3 /app/seed_admin.py "$SAFE_OWNER" || true ) &
+
+# Start Navidrome (foreground / PID 1 semantics for clean shutdown).
 echo "Starting Navidrome..."
 exec /app/navidrome
