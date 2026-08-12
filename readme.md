@@ -1,4 +1,4 @@
-Navidrome music server for OpenHost. Runs as a single Docker container:
+Navidrome music server for Cloud in a Bottle. Runs as a single Docker container:
 
 - Navidrome latest (web-based music streamer, like a personal Spotify)
 - Embedded SQLite database, no external dependencies
@@ -7,7 +7,7 @@ Navidrome music server for OpenHost. Runs as a single Docker container:
 
 ## Deploying
 
-Deploy via the OpenHost router dashboard -- point it at this repo. The app will be available at `{app_name}.{zone_domain}` (e.g. `navidrome.zack.host.imbue.com`).
+Deploy via the Cloud in a Bottle router dashboard -- point it at this repo. The app will be available at `{app_name}.{zone_domain}` (e.g. `navidrome.zack.host.imbue.com`).
 
 ## First-time setup
 
@@ -17,7 +17,7 @@ Deploy via the OpenHost router dashboard -- point it at this repo. The app will 
 
 ## Adding music
 
-Music files go in `$OPENHOST_APP_DATA_DIR/music/`. You can upload files via any method that can write to the OpenHost app data directory. Navidrome automatically scans for new files every hour.
+Music files go in `$OPENHOST_APP_DATA_DIR/music/`. You can upload files via any method that can write to the Cloud in a Bottle app data directory. Navidrome automatically scans for new files every hour.
 
 ## Data
 
@@ -27,7 +27,7 @@ All persistent data lives in `$OPENHOST_APP_DATA_DIR/`:
 
 ## Access control
 
-This app is fully private. There are no public paths in `openhost.toml`, so all requests require OpenHost authentication.
+This app is fully private. There are no public paths in `openhost.toml`, so all requests require Cloud in a Bottle authentication.
 
 ## Resources
 
@@ -35,11 +35,11 @@ Needs ~256MB RAM and 0.25 CPU cores. The container image is ~75MB.
 
 ## Client apps
 
-Because all routes are gated by OpenHost auth, direct Subsonic client apps may not work unless you later expose API paths publicly.
+Because all routes are gated by Cloud in a Bottle auth, direct Subsonic client apps may not work unless you later expose API paths publicly.
 
 ## Files
 
 - `Dockerfile` -- extends the official Navidrome image (Alpine), adds Caddy
 - `start.sh` -- configures data/music dirs, starts Caddy + Navidrome
 - `Caddyfile` -- rewrites Host header from X-Forwarded-Host
-- `openhost.toml` -- OpenHost app manifest
+- `openhost.toml` -- Cloud in a Bottle app manifest
