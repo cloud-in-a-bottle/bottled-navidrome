@@ -67,9 +67,14 @@ HOP_BY_HOP = frozenset(
         "host",
     )
 )
-# Never forward these inbound: the auth header (defence in depth), the owner
-# marker, and the forwarded-for chain (we set our own).
-ALWAYS_STRIP = frozenset(h.lower() for h in (OWNER_HEADER_NAME, AUTH_HEADER_NAME, "x-forwarded-for"))
+# Never forward these inbound: the owner marker, the Navidrome reverse-proxy
+# auth header (Remote-User, defence in depth), the platform Bearer token
+# (Authorization — Navidrome doesn't use it but logs it on failed auth,
+# leaking the token), and the forwarded-for chain (we set our own).
+ALWAYS_STRIP = frozenset(
+    h.lower()
+    for h in (OWNER_HEADER_NAME, AUTH_HEADER_NAME, "authorization", "x-forwarded-for")
+)
 
 logging.basicConfig(
     level=os.environ.get("AUTH_PROXY_LOG_LEVEL", "INFO"),
