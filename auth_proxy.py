@@ -38,12 +38,21 @@ import os
 import re
 import socket
 import sys
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 LISTEN_HOST = "0.0.0.0"
 LISTEN_PORT = int(os.environ.get("AUTH_PROXY_LISTEN_PORT", "3000"))
 UPSTREAM_HOST = os.environ.get("AUTH_PROXY_UPSTREAM_HOST", "127.0.0.1")
 UPSTREAM_PORT = int(os.environ.get("AUTH_PROXY_UPSTREAM_PORT", "4533"))
+
+# During the first STARTUP_GRACE_SECONDS after the proxy starts, retry
+# upstream connection failures instead of returning an immediate 502.
+# Navidrome takes a few seconds to bind its port; without this the
+# router's readiness probes get 502s and the logs fill with
+# "upstream error: Connection refused" noise on every deploy/restart.
+STARTUP_GRACE_SECONDS = 30
+_STARTUP_DEADLINE = time.monotonic() + STARTUP_GRACE_SECONDS
 
 OWNER_HEADER_NAME = "X-OpenHost-Is-Owner"
 AUTH_HEADER_NAME = "Remote-User"
@@ -152,12 +161,39 @@ class AuthProxyHandler(BaseHTTPRequestHandler):
                 conn.send(body)
             resp = conn.getresponse()
         except (OSError, http.client.HTTPException) as exc:
-            log.warning("upstream error: %s", exc)
-            try:
-                self.send_error(502, "Upstream error")
-            except OSError:
-                pass
-            return
+            # During the startup grace window, retry a few times so the
+            # router's readiness probe is bridged while Navidrome starts.
+            if time.monotonic() < _STARTUP_DEADLINE:
+                for _attempt in range(5):
+                    time.sleep(1)
+                    try:
+                        conn = http.client.HTTPConnection(UPSTREAM_HOST, UPSTREAM_PORT, timeout=600)
+                        conn.putrequest(self.command, self.path, skip_host=True, skip_accept_encoding=True)
+                        for k, v in out_headers:
+                            conn.putheader(k, v)
+                        if body is not None:
+                            conn.putheader("Content-Length", str(len(body)))
+                        conn.endheaders()
+                        if body:
+                            conn.send(body)
+                        resp = conn.getresponse()
+                        break
+                    except (OSError, http.client.HTTPException):
+                        continue
+                else:
+                    log.warning("upstream error (startup): %s", exc)
+                    try:
+                        self.send_error(502, "Upstream error")
+                    except OSError:
+                        pass
+                    return
+            else:
+                log.warning("upstream error: %s", exc)
+                try:
+                    self.send_error(502, "Upstream error")
+                except OSError:
+                    pass
+                return
 
         # Relay status + headers, streaming the body so audio/range responses
         # aren't buffered in memory.  Close the connection after each response
