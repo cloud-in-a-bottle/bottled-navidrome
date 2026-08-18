@@ -43,3 +43,7 @@ Because all routes are gated by Cloud in a Bottle auth, direct Subsonic client a
 - `start.sh` -- configures data/music dirs, starts Caddy + Navidrome
 - `Caddyfile` -- rewrites Host header from X-Forwarded-Host
 - `openhost.toml` -- Cloud in a Bottle app manifest
+
+## License
+
+Navidrome is licensed under the GNU General Public License v3.0 (GPL-3.0). The container image built from this repo is distributed under that license. The packaging files original to this repository are additionally available under the MIT License. See LICENSE and NOTICE for details.
