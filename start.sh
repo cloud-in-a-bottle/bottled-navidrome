@@ -68,14 +68,9 @@ SAFE_OWNER="$(printf '%s' "$RAW_OWNER" | tr -cd 'A-Za-z0-9._-')"
 if [ -z "$SAFE_OWNER" ]; then
     SAFE_OWNER="admin"
 fi
-# Configure Navidrome's reverse-proxy auth, trusting only loopback.  We set
-# BOTH the classic ND_REVERSEPROXY* keys and the newer ND_EXTAUTH_* aliases
-# (Navidrome 0.62 needs the classic keys for the web-UI auto-login to inject
-# the session; the ExtAuth aliases keep it forward-compatible).
+# Configure Navidrome's reverse-proxy auth, trusting only loopback.
 export ND_EXTAUTH_USERHEADER="Remote-User"
 export ND_EXTAUTH_TRUSTEDSOURCES="127.0.0.1/32,::1/128"
-export ND_REVERSEPROXYUSERHEADER="Remote-User"
-export ND_REVERSEPROXYWHITELIST="127.0.0.1/32,::1/128"
 echo "Navidrome SSO: owner auto-login as '$SAFE_OWNER' via reverse-proxy auth"
 
 # Start the OpenHost auth-proxy sidecar first — it listens on :3000 and
