@@ -1,49 +1,58 @@
-Navidrome music server for Cloud in a Bottle. Runs as a single Docker container:
+# bottled-navidrome
 
-- Navidrome latest (web-based music streamer, like a personal Spotify)
-- Embedded SQLite database, no external dependencies
-- Subsonic API compatible (works with DSub, Submariner, play:Sub, Symfonium, etc.)
-- Very low resource usage (~50MB RAM)
+[Navidrome](https://github.com/navidrome/navidrome) is a music server and
+streamer with a web UI and Subsonic API support. This repository packages it as
+a Cloud in a Bottle app.
 
-## Deploying
+## What you get
 
-Deploy via the Cloud in a Bottle router dashboard -- point it at this repo. The app will be available at `{app_name}.{zone_domain}` (e.g. `navidrome.zack.host.imbue.com`).
+- Navidrome running on `https://navidrome.<zone>/`.
+- Public: anyone with the URL can reach the app. The owner is auto-logged in
+  via Cloud in a Bottle SSO; others see Navidrome's login.
+- Subsonic API compatible (works with DSub, Submariner, play:Sub, Symfonium,
+  and other Subsonic/OpenSubsonic clients).
+- Share links for tracks and albums (accessible without login when sharing is
+  enabled).
+- Transcoding configuration exposed in the admin panel.
+- Low resource usage.
 
-## First-time setup
+## Usage
 
-1. Visit the app URL -- Navidrome will show a registration page
-2. Create your admin account (first user registered becomes admin)
-3. Upload music to the `music/` directory in the app's persistent data
+Open `https://navidrome.<zone>/`. As the Cloud in a Bottle owner you are
+logged in automatically as admin. Upload music files into the music directory
+(see Data below), then trigger a library scan from Settings or wait for the
+hourly automatic scan.
 
-## Adding music
+Subsonic clients connect to the same URL with the owner's Navidrome username
+and password. A separate Navidrome password can be set in the user profile
+settings if needed for clients.
 
-Music files go in `$OPENHOST_APP_DATA_DIR/music/`. You can upload files via any method that can write to the Cloud in a Bottle app data directory. Navidrome automatically scans for new files every hour.
+To invite other users, create accounts from the Users admin page. They log in
+at the Navidrome login form with their own credentials.
 
 ## Data
 
-All persistent data lives in `$OPENHOST_APP_DATA_DIR/`:
-- `data/` -- Navidrome database, cache, transcoding cache
-- `music/` -- your music library
+All persistent data lives under `$OPENHOST_APP_DATA_DIR/`:
 
-## Access control
+- `data/`: Navidrome database, cache, transcoding cache
+- `music/`: your music library (upload files here)
 
-This app is fully private. There are no public paths in `openhost.toml`, so all requests require Cloud in a Bottle authentication.
+## Caveats
+
+- The music directory starts empty. You need to add music files for the app to
+  be useful.
+- Navidrome scans for new music every hour. Trigger a manual scan from Settings
+  if you do not want to wait.
+- Sharing requires Navidrome v0.49+. Share links work anonymously because the
+  app is public.
 
 ## Resources
 
-Needs ~256MB RAM and 0.25 CPU cores. The container image is ~75MB.
-
-## Client apps
-
-Because all routes are gated by Cloud in a Bottle auth, direct Subsonic client apps may not work unless you later expose API paths publicly.
-
-## Files
-
-- `Dockerfile` -- extends the official Navidrome image (Alpine), adds Caddy
-- `start.sh` -- configures data/music dirs, starts Caddy + Navidrome
-- `Caddyfile` -- rewrites Host header from X-Forwarded-Host
-- `openhost.toml` -- Cloud in a Bottle app manifest
+About 256 MB RAM and 0.25 CPU cores.
 
 ## License
 
-Navidrome is licensed under the GNU General Public License v3.0 (GPL-3.0). The container image built from this repo is distributed under that license. The packaging files original to this repository are additionally available under the MIT License. See LICENSE and NOTICE for details.
+Navidrome is licensed under the GNU General Public License v3.0 (GPL-3.0). The
+container image built from this repo is distributed under that license. The
+packaging files original to this repository are additionally available under
+the MIT License. See LICENSE and NOTICE for details.
