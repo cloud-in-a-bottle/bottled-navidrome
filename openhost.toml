@@ -12,6 +12,11 @@ public_paths = ["/"]
 
 [resources]
 memory_mb = 256
+# Measured clean --no-cache build peak ~393 MiB (0.38 GiB), from
+# pulling/extracting the deluan/navidrome base image. Runtime memory_mb
+# (256) is lower, so without an explicit build cap the build can OOM.
+# Sized to the measured peak rounded up to the next 0.5 GiB.
+build_memory_mb = 512
 cpu_cores = 0.25
 
 [data]
