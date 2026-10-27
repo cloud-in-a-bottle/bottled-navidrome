@@ -67,6 +67,8 @@ def main() -> int:
             time.sleep(1)
             continue
         if status == 200:
+            # /app/ embeds its config as a JSON document inside a JS string literal, so its quotes are escaped.
+            html = html.replace("\\u0022", '"').replace('\\"', '"')
             if '"firstTime":false' in html:
                 print("[seed] admin already exists; nothing to do")
                 return 0
