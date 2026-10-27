@@ -43,6 +43,6 @@ def test_anonymous_gets_navidrome_login_but_no_access(stack: OpenhostStack) -> N
 
 
 def test_library_lives_in_app_data(stack: OpenhostStack) -> None:
-    _get_until(stack, stack.owner_session, "/api/user", 200)
+    _get_until(stack, None, "/app/", 200)
     assert (stack.data_dir / "data" / "navidrome.db").is_file(), list(stack.data_dir.rglob("*"))[:50]
     assert (stack.data_dir / "music").is_dir(), list(stack.data_dir.iterdir())
