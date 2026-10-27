@@ -1,4 +1,5 @@
-FROM deluan/navidrome:0.64.2
+# Pinned by tag and multi-arch index digest; bump both to upgrade.
+FROM docker.io/deluan/navidrome:0.64.2@sha256:38dc2727bfcfd5ede290f8ada114fc90368146f265ae4701ddddbcbe2a44ee52
 
 USER root
 
