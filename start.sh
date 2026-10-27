@@ -11,15 +11,20 @@ MUSIC_DIR="$PERSIST/music"
 
 mkdir -p "$DATA_DIR" "$MUSIC_DIR"
 
-# Derive base URL from OpenHost environment variables
+# Derive base URL from OpenHost environment variables.
+# On a dev router or in the test harness the zone domain carries the router's
+# port (eg harness.localhost:59285); real zones never do.
 if [ -n "$OPENHOST_ZONE_DOMAIN" ]; then
     APP_SUBDOMAIN="${OPENHOST_APP_NAME:-navidrome}"
-    DOMAIN_NAME="${APP_SUBDOMAIN}.${OPENHOST_ZONE_DOMAIN}"
+    ZONE_HOST="${OPENHOST_ZONE_DOMAIN%%:*}"
+    DOMAIN_NAME="${APP_SUBDOMAIN}.${ZONE_HOST}"
 
-    case "$OPENHOST_ZONE_DOMAIN" in
+    case "$ZONE_HOST" in
         lvh.me|*.lvh.me|localhost|*.localhost)
             ROUTER_PORT=""
-            if [ -n "$OPENHOST_ROUTER_URL" ]; then
+            if [ "$ZONE_HOST" != "$OPENHOST_ZONE_DOMAIN" ]; then
+                ROUTER_PORT="${OPENHOST_ZONE_DOMAIN##*:}"
+            elif [ -n "$OPENHOST_ROUTER_URL" ]; then
                 ROUTER_PORT=$(echo "$OPENHOST_ROUTER_URL" | sed -n 's/.*:\([0-9]*\)$/\1/p')
             fi
             BASE_URL="http://${DOMAIN_NAME}${ROUTER_PORT:+:$ROUTER_PORT}"
