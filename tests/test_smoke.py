@@ -1,3 +1,4 @@
+import re
 import time
 
 from openhost_test_harness import OpenhostStack
@@ -14,3 +15,12 @@ def test_app_serves_owner(stack: OpenhostStack) -> None:
     assert response.status_code < 400, (
         f"GET / returned {response.status_code}: {response.text[:500]}\n\napp logs:\n{stack.app_logs()[-5000:]}"
     )
+
+
+def test_base_url_matches_router_url(stack: OpenhostStack) -> None:
+    # The harness zone domain carries the router's port (eg harness.localhost:59285), so the base URL start.sh derives
+    # must be plain http with that port, exactly as the browser reaches the app.
+    logs = stack.app_logs()
+    match = re.search(r"base_url=(\S*)", logs)
+    assert match is not None, f"no base_url in app logs:\n{logs[-5000:]}"
+    assert match.group(1) == stack.url
