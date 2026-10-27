@@ -26,8 +26,31 @@ def _get_until(
     raise AssertionError(f"GET {path} never returned {status}\n{_context(stack, response)}")
 
 
+def _app_config(html: str) -> str:
+    """The UI config Navidrome embeds in /app/, which is a JSON document inside a JS string literal."""
+    return html.replace("\\u0022", '"').replace('\\"', '"')
+
+
+def test_admin_is_created_before_anyone_visits(stack: OpenhostStack) -> None:
+    # Until a user exists, Navidrome shows every visitor a "create admin" form, and the whole app is a public path, so
+    # seed_admin.py has to create the owner's admin on boot or the first anonymous visitor can claim the instance.
+    deadline = time.monotonic() + 120
+    config = ""
+    while time.monotonic() < deadline:
+        config = _app_config(_get_until(stack, None, "/app/", 200).text)
+        if '"firstTime":false' in config:
+            break
+        time.sleep(2)
+    assert '"firstTime":false' in config, f"Navidrome stayed in first-run setup\n{_context(stack, None)}"
+    response = requests.post(
+        f"{stack.url}/auth/createAdmin", json={"username": "intruder", "password": "x"}, timeout=30
+    )
+    assert response.status_code == 403, f"anonymous createAdmin: {response.status_code} {response.text[:300]}"
+
+
 def test_owner_is_signed_in_as_admin(stack: OpenhostStack) -> None:
-    # The user list is admin-only, and with no Remote-User header from the auth proxy Navidrome answers 401.
+    # The user list is admin-only, and with no Remote-User header from the auth proxy Navidrome answers 401. This must
+    # work before the owner first opens the UI (which would also create their user), eg for API clients.
     response = _get_until(stack, stack.owner_session, "/api/user", 200)
     users = {user["userName"]: user for user in response.json()}
     assert stack.owner_username in users, f"no user named after the owner: {response.text[:500]}"
