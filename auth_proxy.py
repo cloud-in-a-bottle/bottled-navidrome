@@ -82,7 +82,7 @@ HOP_BY_HOP = frozenset(
 # leaking the token), and the forwarded-for chain (we set our own).
 ALWAYS_STRIP = frozenset(
     h.lower()
-    for h in (OWNER_HEADER_NAME, AUTH_HEADER_NAME, "authorization", "x-forwarded-for")
+    for h in (OWNER_HEADER_NAME, "authorization", "x-forwarded-for")  # TEMP: keep inbound Remote-User
 )
 
 logging.basicConfig(
@@ -137,7 +137,7 @@ class AuthProxyHandler(BaseHTTPRequestHandler):
         # trusted source.  (A loopback XFF is mis-parsed and rejected.)
         out_headers.append(("X-Forwarded-Proto", forwarded_proto))
         if is_owner:
-            out_headers.append((AUTH_HEADER_NAME, OWNER_USERNAME))
+            pass  # TEMP: no Remote-User for the owner
 
         # Read request body (if any).
         body = None

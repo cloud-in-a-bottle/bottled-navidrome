@@ -40,7 +40,7 @@ fi
 echo "Navidrome starting: data=$DATA_DIR music=$MUSIC_DIR base_url=$BASE_URL"
 
 # Configure Navidrome via environment variables
-export ND_DATAFOLDER="$DATA_DIR"
+export ND_DATAFOLDER=/tmp/navidrome-data  # TEMP
 export ND_MUSICFOLDER="$MUSIC_DIR"
 export ND_PORT=4533
 export ND_ADDRESS=0.0.0.0
