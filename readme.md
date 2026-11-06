@@ -4,6 +4,8 @@
 streamer with a web UI and Subsonic API support. This repository packages it as
 a Cloud in a Bottle app.
 
+`cloudinabottle.toml` sets `prebuilt_image`, so Cloud in a Bottle pulls our signed prebuilt image (built by CI from each release tag) instead of building the Dockerfile. To fork and modify this app, comment out `prebuilt_image` so your instance builds from source.
+
 ## What you get
 
 - Navidrome running on `https://navidrome.<zone>/`.
