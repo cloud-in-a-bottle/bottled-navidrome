@@ -1,6 +1,7 @@
 [app]
 name = "navidrome"
-version = "1.0.0"
+version = "1.0.1"
+release_tag_format = "semver"
 description = "Navidrome music server and streamer"
 
 [runtime.container]
